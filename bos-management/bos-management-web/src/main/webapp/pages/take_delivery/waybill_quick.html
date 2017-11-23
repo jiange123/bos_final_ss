@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>运单快速录入</title>
+		<!-- 导入jquery核心类库 -->
+		<script type="text/javascript" src="../../js/jquery-1.8.3.js"></script>
+		<!-- 导入easyui类库 -->
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/themes/default/easyui.css">
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/themes/icon.css">
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/ext/portal.css">
+		<link rel="stylesheet" type="text/css" href="../../css/default.css">
+		<script type="text/javascript" src="../../js/easyui/jquery.easyui.min.js"></script>
+		<script type="text/javascript" src="../../js/easyui/ext/jquery.portal.js"></script>
+		<script type="text/javascript" src="../../js/easyui/ext/jquery.cookie.js"></script>
+		<script src="../../js/easyui/locale/easyui-lang-zh_CN.js" type="text/javascript"></script>
+		<script type="text/javascript">
+			var editIndex ;
+			
+			function doAdd(){
+				//alert(editIndex)	
+				if(editIndex != undefined){
+					//如果在修改状态点击add，则结束修改状态，将editIndex置为了默认值undefined
+					$("#grid").datagrid('endEdit',editIndex);
+				}
+				//上面程序走完后，editIndex置为了默认值undefined，执行add
+				if(editIndex==undefined){
+					//alert(editIndex)	//editIndex默认值为undefined
+					//alert("快速添加电子单...");
+					$("#grid").datagrid('insertRow',{
+						index : 0,   //参数是为新建的行指定索引
+						row : {}	//不指定内容，新建一行空的表格
+					});
+					//新增一行表格后顺便开始编辑状态
+					$("#grid").datagrid('beginEdit',0);
+					editIndex = 0;	//将新建的行的索引赋值给 editIndex
+				}
+			}
+			
+			function doSave(){
+				//结束本行的编辑
+				$("#grid").datagrid('endEdit',editIndex );
+			}
+			
+			function doCancel(){
+				if(editIndex!=undefined){
+					$("#grid").datagrid('cancelEdit',editIndex);	//取消修改
+					alert($('#grid').datagrid('getRows')[editIndex].id)
+					//editIndex中保存者当前想要取消编辑的行的索引，从0开始
+					//getRows:返回当前页的所有行
+					if($('#grid').datagrid('getRows')[editIndex].id == undefined){
+						$("#grid").datagrid('deleteRow',editIndex);
+					}
+					//修改editIndex值
+					editIndex = undefined;
+				}
+			}
+			
+			//工具栏
+			var toolbar = [ {
+				id : 'button-add',	
+				text : '新增运单',
+				iconCls : 'icon-edit',
+				handler : doAdd
+			}, {
+				id : 'button-cancel',
+				text : '取消编辑',
+				iconCls : 'icon-cancel',
+				handler : doCancel
+			}, {
+				id : 'button-save',
+				text : '保存',
+				iconCls : 'icon-save',
+				handler : doSave
+			}];
+			// 定义列
+			var columns = [ [ {
+				field : 'wayBillNum',
+				title : '工作单号',
+				width : 120,
+				align : 'center',
+				editor :{
+					type : 'validatebox',
+					options : {
+						required: true
+					}
+				}
+			}, {
+				field : 'arriveCity',
+				title : '到达地',
+				width : 120,
+				align : 'center',
+				editor :{
+					type : 'validatebox',
+					options : {
+						required: true
+					}
+				}
+			},{
+				field : 'goodsType',
+				title : '产品',
+				width : 120,
+				align : 'center',
+				editor :{
+					type : 'validatebox',
+					options : {
+						required: true
+					}
+				}
+			}, {
+				field : 'num',
+				title : '件数',
+				width : 120,
+				align : 'center',
+				editor :{
+					type : 'numberbox',
+					options : {
+						required: true
+					}
+				}
+			}, {
+				field : 'weight',
+				title : '重量',
+				width : 120,
+				align : 'center',
+				editor :{
+					type : 'validatebox',
+					options : {
+						required: true
+					}
+				}
+			}, {
+				field : 'floadreqr',
+				title : '配载要求',
+				width : 220,
+				align : 'center',
+				editor :{
+					type : 'validatebox',
+					options : {
+						required: true
+					}
+				}
+			}] ];
+			
+			$(function(){
+				// 先将body隐藏，再显示，不会出现页面刷新效果
+				$("body").css({visibility:"visible"});
+				
+				// 运单数据表格
+				$('#grid').datagrid( {
+					iconCls : 'icon-forward',
+					fit : true,
+					border : true,
+					rownumbers : true,
+					striped : true,
+					pageList: [30,50,100],
+					singleSelect : true,
+					pagination : true,
+					toolbar : toolbar,
+					url :  "../../waybillAction_pageQuery.action",
+					idField : 'id',
+					columns : columns,
+					onDblClickRow : doDblClickRow,
+					onAfterEdit : function(rowIndex, rowData, changes){		//用户完成编辑一行的时候触发
+						//发送请求，保存运单
+						$.post("../../waybillAction_save.action",rowData,function(data){
+							if(data == "0"){
+								$.messager.alert("提示信息", "保存失败,请确认信息无误", "info")
+								$("#grid").datagrid('deleteRow',rowIndex);
+							}
+						})
+						//console.info(rowData);
+						editIndex = undefined;
+					}
+				});
+			});
+		
+			//客户双击某一行开始编辑
+			function doDblClickRow(rowIndex, rowData){
+				//alert("双击表格数据...");
+				//console.info(rowIndex);	//表示在控制台打印双击所选中的行的索引
+				$('#grid').datagrid('beginEdit',rowIndex);
+				editIndex = rowIndex;
+			}
+		</script>
+	</head>
+
+	<body class="easyui-layout" style="visibility:hidden;">
+		<div region="center" border="false">
+			<table id="grid"></table>
+		</div>
+	</body>
+
+</html> 

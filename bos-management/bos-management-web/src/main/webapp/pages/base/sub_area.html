@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>管理分区</title>
+		<!-- 导入jquery核心类库 -->
+		<script type="text/javascript" src="../../js/jquery-1.8.3.js"></script>
+		<script type="text/javascript" src="../../js/highcharts/highcharts.js"></script>
+		<script type="text/javascript" src="../../js/highcharts/modules/exporting.js"></script>
+		<script type="text/javascript" src="../../js/highcharts/highcharts-zh_CN.js"></script>
+		
+		<!-- 导入easyui类库 -->
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/themes/default/easyui.css">
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/themes/icon.css">
+		<link rel="stylesheet" type="text/css" href="../../js/easyui/ext/portal.css">
+		<link rel="stylesheet" type="text/css" href="../../css/default.css">
+		<script type="text/javascript" src="../../js/easyui/jquery.easyui.min.js"></script>
+		<script type="text/javascript" src="../../js/easyui/ext/jquery.portal.js"></script>
+		<script type="text/javascript" src="../../js/easyui/ext/jquery.cookie.js"></script>
+		<script src="../../js/easyui/locale/easyui-lang-zh_CN.js" type="text/javascript"></script>
+		<!-- <script type="text/javascript" src="../../js/highcharts/highcharts.js"></script> -->
+		<script type="text/javascript">
+			function doAdd(){
+				$('#addWindow').window("open");
+				$("#addWindow").form("clear");
+			}
+			
+			function doEdit(){
+				//1.判断客户是否选择了复选框
+				var result = $("#grid").datagrid("getSelections");
+				if(result.length == 1){
+					//打开窗口回显数据
+					$('#addWindow').window("open");
+					$('#addWindow').form("load",result[0]);
+					//区域值回显
+					$("#areaId").combobox("setValue",result[0].area.id)
+				}else{
+					//打印提示信息
+					$.messager.alert("提示信息","请选择一行进行修改","warning")
+				}
+			}
+			
+			function doDelete(){
+				var rows = $("#grid").datagrid("getSelections");
+				if(rows.length > 0){
+					$.messager.confirm("提示信息", "确认删除吗？", function(data){
+						if(data){
+							for (var i = 0; i < rows.length; i++) {
+								var rowId = rows[i].id;
+								location.href="../../subareaAction_deleteById.action?id="+rowId;
+							}
+						}
+					})
+				}else{
+					$.messager.alert("提示信息","请选择至少一条数据进行操作","warning")
+				}
+			}
+			
+			function doSearch(){
+				$('#searchWindow').window("open");
+			}
+			
+			//导出按钮绑定的事件
+			function doExport(){
+				window.location.href="../../subareaAction_exportExcel.action";
+			}
+			
+			function doImport(){
+				alert("导入");
+			}
+			
+			//工具栏
+			var toolbar = [ {
+				id : 'button-search',	
+				text : '查询',
+				iconCls : 'icon-search',
+				handler : doSearch
+			}, {
+				id : 'button-add',
+				text : '增加',
+				iconCls : 'icon-add',
+				handler : doAdd
+			}, {
+				id : 'button-edit',	
+				text : '修改',
+				iconCls : 'icon-edit',
+				handler : doEdit
+			},{
+				id : 'button-delete',
+				text : '删除',
+				iconCls : 'icon-cancel',
+				handler : doDelete
+			},{
+				id : 'button-import',
+				text : '导入',
+				iconCls : 'icon-redo',
+				handler : doImport
+			},{
+				id : 'button-export',
+				text : '导出Excel',
+				iconCls : 'icon-undo',
+				handler : doExport
+			},{
+			    id: 'button-show',
+			    text: '分区分布图',
+			    iconCls: 'icon-search',
+			    handler: doHighCharts
+			}];
+			// 定义列
+			var columns = [ [ {
+				field : 'id',
+				checkbox : true,
+			}, {
+				field : 'showid',
+				title : '分拣编号',
+				width : 120,
+				align : 'center',
+				formatter : function(data,row ,index){
+					return row.id;
+				}
+			},{
+				field : 'area.province',
+				title : '省',
+				width : 120,
+				align : 'center',
+				formatter : function(data,row ,index){
+					if(row.area != null ){
+						return row.area.province;
+					}
+					return "" ;
+				}
+			}, {
+				field : 'area.city',
+				title : '市',
+				width : 120,
+				align : 'center',
+				formatter : function(data,row ,index){
+					if(row.area != null ){
+						return row.area.city;
+					}
+					return "" ;
+				}
+			}, {
+				field : 'area.district',
+				title : '区',
+				width : 120,
+				align : 'center',
+				formatter : function(data,row ,index){
+					if(row.area != null ){
+						return row.area.district;
+					}
+					return "" ;
+				}
+			}, {
+				field : 'keyWords',
+				title : '关键字',
+				width : 120,
+				align : 'center'
+			}, {
+				field : 'startNum',
+				title : '起始号',
+				width : 100,
+				align : 'center'
+			}, {
+				field : 'endNum',
+				title : '终止号',
+				width : 100,
+				align : 'center'
+			} , {
+				field : 'single',
+				title : '单双号',
+				width : 100,
+				align : 'center',
+				formatter : function(data,row ,index){
+					if(row.single == 1){
+						return "单号"
+					}else{
+						return "双号"
+					}
+				}
+			} , {
+				field : 'assistKeyWords',
+				title : '辅助关键字',
+				width : 100,
+				align : 'center'
+			} ] ];
+			
+			$(function(){
+				// 先将body隐藏，再显示，不会出现页面刷新效果
+				$("body").css({visibility:"visible"});
+				
+				// 分区管理数据表格
+				$('#grid').datagrid( {
+					iconCls : 'icon-forward',
+					fit : true,
+					border : true,
+					rownumbers : true,
+					striped : true,
+					pageList: [10,20,30],
+					pagination : true,
+					toolbar : toolbar,
+					url : "../../subareaAction_pageQuery.action",
+					idField : 'id',
+					columns : columns,
+					onDblClickRow : doDblClickRow
+				});
+				
+				// 添加、修改分区
+				$('#addWindow').window({
+			        title: '添加修改分区',
+			        width: 600,
+			        modal: true,
+			        shadow: true,
+			        closed: true,
+			        height: 400,
+			        resizable:false
+			    });
+				
+				$('#chartWindow').window({
+			        width: 700,
+			        modal: true,
+			        shadow: true,
+			        closed: true,
+			        height: 600,
+			        resizable:false
+			    });
+				
+				// 查询分区
+				$('#searchWindow').window({
+			        title: '查询分区',
+			        width: 400,
+			        modal: true,
+			        shadow: true,
+			        closed: true,
+			        height: 400,
+			        resizable:false
+			    });
+				
+			});
+		
+			function doDblClickRow(){
+				alert("双击表格数据...");
+			}
+			
+			function doHighCharts(){
+				// 显示窗口
+			    $('#chartWindow').window("open");
+			    // 异步请求数据
+			    $.getJSON("../../subAreaAction_findToColumn.action",
+			    		function(result){
+			    	$('#container').highcharts({
+		    	        chart: {
+		    	            type: 'column'
+		    	        },
+		    	        title: {
+		    	            text: '各区域分区的数目'
+		    	        },
+		    	        xAxis: {
+		    	            categories:'区域',
+		    	            crosshair: true
+		    	        },
+		    	        yAxis: {
+		    	            min: 0,
+		    	            title: {
+		    	                text: '分区数(个)'
+		    	            }
+		    	        },
+		    	        series: result
+			    	})
+			    });
+			}
+			
+			//点击提价按钮提交表达数据
+			function saveSubArea(){
+				$("#subareaForm").submit();
+			}
+		</script>
+	</head>
+
+	<body class="easyui-layout" style="visibility:hidden;">
+		<div region="center" border="false">
+			<table id="grid"></table>
+		</div>
+		<!-- 添加 修改分区 -->
+		<div class="easyui-window" title="分区添加修改" id="addWindow" collapsible="false" minimizable="false" maximizable="false" style="top:20px;left:200px">
+			<div style="height:31px;overflow:hidden;" split="false" border="false">
+				<div class="datagrid-toolbar">
+					<a id="save" onclick="saveSubArea()" icon="icon-save" href="#" class="easyui-linkbutton" plain="true">保存</a>
+				</div>
+			</div>
+
+			<div style="overflow:auto;padding:5px;" border="false">
+				<form id="subareaForm" method="post" action="../../subareaAction_save.action">
+					<table class="table-edit" width="80%" align="center">
+						<tr class="title">
+							<td colspan="2">
+							分区信息
+							<!-- 隐藏域  将当前更新的分区id进行传递 -->
+							<input type="hidden" name="id" >
+							</td>
+						</tr>
+						<tr>
+							<td>选择区域</td>
+							<td>
+								<input id="areaId" class="easyui-combobox" name="area.id"
+									 data-options="valueField:'id',textField:'name',mode : 'remote',
+									 url:'../../AreaAction_findAll.action'" />
+							</td>
+						</tr>
+						<tr>
+							<td>关键字</td>
+							<td>
+								<input type="text" name="keyWords" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>辅助关键字</td>
+							<td>
+								<input type="text" name="assistKeyWords" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>起始号</td>
+							<td>
+								<input type="text" name="startNum" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>终止号</td>
+							<td>
+								<input type="text" name="endNum" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>单双号</td>
+							<td>
+								<select class="easyui-combobox" name="single" style="width:150px;">
+									<!-- <option value="0">单双号</option> -->
+									<option value="1">单号</option>
+									<option value="2">双号</option>
+								</select>
+							</td>
+						</tr>
+						<!-- <tr>
+							<td>位置信息</td>
+							<td>
+								<input type="text" name="position" class="easyui-validatebox" required="true" style="width:250px;" />
+							</td>
+						</tr> -->
+						<!-- <tr>
+							<td>位置信息</td>
+							<td>
+								<input type="text" name="pp" class="easyui-combobox" required="true" />
+							</td>
+						</tr> -->
+					</table>
+				</form>
+			</div>
+		</div>
+		
+		<div class="easyui-window" title="分区分布图" id="chartWindow" collapsible="false" 
+				minimizable="false" maximizable="false" style="top:20px;left:200px">
+			<div id="container"></div>
+		</div>
+		<script type="text/javascript">
+			//将表单数据进行拼接成json数据
+			$.fn.serializeJson = function() {
+				var serializeObj = {};
+				var array = this.serializeArray();
+				var str = this.serialize();
+				$(array).each(
+						function() {
+							if (serializeObj[this.name]) {
+								if ($.isArray(serializeObj[this.name])) {
+									serializeObj[this.name].push(this.value);
+								} else {
+									serializeObj[this.name] = [
+											serializeObj[this.name], this.value ];
+								}
+							} else {
+								serializeObj[this.name] = this.value;
+							}
+						});
+				return serializeObj;
+			};
+		
+			function findSub() {
+				//将表单数据进行拼接json
+				var json = $("#findSubareaId").serializeJson();
+				//携带json数据继续进行发送请求分页查询
+				$("#grid").datagrid("load",json)
+				//关闭窗口
+				$("#searchWindow").window("close")
+			}
+		</script>
+		
+		<!-- 查询分区 -->
+		<div class="easyui-window" title="查询分区窗口" id="searchWindow" collapsible="false" minimizable="false" maximizable="false" style="top:20px;left:200px">
+			<div style="overflow:auto;padding:5px;" border="false">
+				<form id="findSubareaId">
+					<table class="table-edit" width="80%" align="center">
+						<tr class="title">
+							<td colspan="2">查询条件</td>
+						</tr>
+						<tr>
+							<td>省</td>
+							<td>
+								<input type="text" name="area.province" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>市</td>
+							<td>
+								<input type="text" name="area.city" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>区（县）</td>
+							<td>
+								<input type="text" name="area.district" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>定区编码</td>
+							<td>
+								<input type="text" name="fixedAreaId" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td>关键字</td>
+							<td>
+								<input type="text" name="keyWords" class="easyui-validatebox" required="true" />
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2"><a onclick="findSub()" id="btn" href="#" class="easyui-linkbutton" data-options="iconCls:'icon-search'">查询</a> </td>
+						</tr>
+					</table>
+				</form>
+			</div>
+		</div>
+	</body>
+
+</html>

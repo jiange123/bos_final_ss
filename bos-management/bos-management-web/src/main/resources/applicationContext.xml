@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:jpa="http://www.springframework.org/schema/data/jpa" xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:jaxrs="http://cxf.apache.org/jaxrs"
+	xsi:schemaLocation="
+						http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+						http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+						http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+						http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+						http://www.springframework.org/schema/data/jpa 
+						http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
+						http://cxf.apache.org/jaxrs 
+						http://cxf.apache.org/schemas/jaxrs.xsd">
+
+
+	<!-- 导入properties -->
+	<context:property-placeholder location="classpath:ssh.properties"/>
+	<!-- C3P0 -->
+	<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+		<property name="driverClass" value="${driverClass}" ></property>
+		<property name="jdbcUrl" value="${jdbcUrl}" ></property>
+		<property name="user" value="${user}" ></property>
+		<property name="password" value="${password}" ></property>
+	</bean>
+
+	<!-- spring整合jpa -->
+	<bean name="entityManagerFactory"
+		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="dataSource" ref="dataSource"></property>
+		<!-- 指定jpa扫描实体 类的路径 -->
+		<property name="packagesToScan" value="com.itheima.bos.domain" />
+		<!-- 指定持久层提供者为Hibernate -->
+		<property name="persistenceProvider">
+			<bean class="org.hibernate.ejb.HibernatePersistence"></bean>
+		</property>
+		<property name="jpaVendorAdapter">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+				<!-- 自动建表 -->
+				<property name="generateDdl" value="true" />
+				<property name="database" value="ORACLE" />
+				<property name="databasePlatform" value="org.hibernate.dialect.Oracle10gDialect" />
+				<property name="showSql" value="true" />
+			</bean>
+		</property>
+		<property name="jpaDialect">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaDialect" />
+		</property>
+	</bean>
+
+	<!-- 获取事务管理器 -->
+	<bean name="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory" ref="entityManagerFactory"></property>
+	</bean>
+
+	<!-- 开启IOC注解，指定spring需要扫描的包 -->
+	<context:component-scan base-package="com.itheima.bos.web,com.itheima.bos.service"></context:component-scan>
+
+	<!-- 开启事务注解
+	proxy-target-class="true" : 开启cglib动态代理模式
+	 -->
+	<tx:annotation-driven proxy-target-class="true" transaction-manager="transactionManager" />
+
+	<!-- 指定spring data jpa需要扫描的包， -->
+	<jpa:repositories base-package="com.itheima.bos.dao"/>
+<jaxrs:server address="/orderService">
+		<jaxrs:serviceBeans>
+			<ref bean="orderServiceImpl" />
+		</jaxrs:serviceBeans>
+		<!-- 设置拦截，打印服务器端接收的信息 -->
+		<jaxrs:inInterceptors>
+			<bean class="org.apache.cxf.interceptor.LoggingInInterceptor"></bean>
+		</jaxrs:inInterceptors>
+
+		<!-- 设置拦截，打印服务器端响应的信息 -->
+		<jaxrs:outInterceptors>
+			<bean class="org.apache.cxf.interceptor.LoggingOutInterceptor"></bean>
+		</jaxrs:outInterceptors>
+	</jaxrs:server>
+	
+	<!-- 注册shiro工厂,初始化过滤器
+		bean名称必须与过滤器名称一致，项目启动的时候，访问到web.xml时，过滤器必须在applicationContext.xml中注册
+	 -->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean" >
+		<!-- 注册安全管理器 -->
+		<property name="securityManager" ref="securityManager" ></property>
+		<!-- 配置工厂参数
+			 private String loginUrl;
+    		 private String successUrl;
+   			 private String unauthorizedUrl;
+		 -->
+		 <!--配置登录路径 -->
+		 <property name="loginUrl" value="/login.html"></property>
+		 <!-- 登录成功后 -->
+		 <property name="successUrl" value="/index.html"></property>
+		 <!-- 权限不够时跳转页面 -->
+		 <property name="unauthorizedUrl" value="/nauthorized.html"></property>
+		 <!-- 配置过滤器过滤规则 -->
+		 <property name="filterChainDefinitions">
+		 	<value>
+		 	<!-- 将css演示等放行 -->
+		 		/css/* = anon
+		 		/images/* = anon
+		 		/js/** = anon
+		 		/validatecode.jsp* = anon
+		 		/userAction_login.action = anon
+		 		/** = authc
+		 	</value>
+		 </property>
+	</bean>
+	
+	<!-- 注册安全管理器 -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager" >
+		<!-- 注入realm -->
+		<property name="realm" ref="userRealm" ></property>
+		<!-- 注入缓存管理器 -->
+		<property name="cacheManager" ref="cacheManager" ></property>
+	</bean>
+	<!-- 托管缓存管理器 -->
+	<bean name="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager" >
+		<property name="cacheManagerConfigFile" value="classpath:ehcache.xml"></property>
+	</bean>
+	
+	<!-- 基于搜ring的动态代理，创建service的代理对象
+		开启cglib代理
+	 -->
+<bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator" >
+	<property name="proxyTargetClass" value="true"></property>
+</bean>	
+
+<!-- 配置切面 -->
+<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor" >
+	<property name="securityManager" ref="securityManager"></property>
+</bean>
+
+
+<!-- 注册任务详情 -->
+<bean id="jobDetail" class="org.springframework.scheduling.quartz.MethodInvokingJobDetailFactoryBean" >
+	<!-- 目标泪 -->
+	<property name="targetObject" ref="workBillJobs"></property>
+	<!-- 目标方法 -->
+	<property name="targetMethod" value="sendEmail"></property>
+</bean>
+<!-- 注册触发器 -->
+<bean id="workBillTrigger" class="org.springframework.scheduling.quartz.CronTriggerFactoryBean" >
+	<!-- 注入任务详情 -->
+	<property name="jobDetail" ref="jobDetail"></property>
+	<!-- 定义调度规则 -->
+	<property name="cronExpression">
+			<value>0/10 * * * * ? 2099</value>
+	</property>
+</bean>
+
+<!-- 注册调度工厂 -->
+<bean class="org.springframework.scheduling.quartz.SchedulerFactoryBean" >
+	<property name="triggers">
+		<ref bean="workBillTrigger"/>
+	</property>
+</bean>
+</beans>

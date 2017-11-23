@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>角色列表页面</title>
+<!-- 导入jquery核心类库 -->
+<script type="text/javascript" src="../../js/jquery-1.8.3.js"></script>
+<!-- 导入easyui类库 -->
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/themes/default/easyui.css">
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/themes/icon.css">
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/ext/portal.css">
+<link rel="stylesheet" type="text/css" href="../../css/default.css">
+<script type="text/javascript"
+	src="../../js/easyui/jquery.easyui.min.js"></script>
+<script type="text/javascript"
+	src="../../js/easyui/ext/jquery.portal.js"></script>
+<script type="text/javascript"
+	src="../../js/easyui/ext/jquery.cookie.js"></script>
+<script src="../../js/easyui/locale/easyui-lang-zh_CN.js"
+	type="text/javascript"></script>
+<!-- 导入ztree类库 -->
+<link rel="stylesheet" href="../../js/ztree/zTreeStyle.css"
+	type="text/css" />
+<script src="../../js/ztree/jquery.ztree.all-3.5.js"
+	type="text/javascript"></script>
+<script type="text/javascript" src="../../js/highcharts/highcharts.js"></script>
+<script type="text/javascript"
+	src="../../js/highcharts/modules/exporting.js"></script>
+<script type="text/javascript"
+	src="../../js/highcharts/highcharts-zh_CN.js"></script>	
+	
+<script type="text/javascript">
+	$(function() {
+
+		//增加隐藏窗口功能
+		$('#chartWindow1').window({
+			width : 700,
+			modal : true,
+			shadow : true,
+			closed : true,
+			height : 700,
+			resizable : false
+		});
+		$('#chartWindow2').window({
+			width : 700,
+			modal : true,
+			shadow : true,
+			closed : true,
+			height : 700,
+			resizable : false
+		});
+		
+		// 菜单树初始化
+		var setting = {
+			data : {
+				key : {
+					title : "t"
+				},
+				simpleData : {
+					enable : true
+				}
+			},
+			check : {
+				enable : true,
+			}
+		};
+
+		// 修改角色窗口
+		$('#editWindow').window({
+			title : '修改角色',
+			width : 800,
+			modal : true,
+			shadow : true,
+			closed : true,
+			height : 400,
+			resizable : false
+		});
+
+		// 数据表格属性
+		$("#grid")
+				.datagrid(
+						{
+							toolbar : [
+									{
+										id : 'add',
+										text : '添加角色',
+										iconCls : 'icon-add',
+										handler : function() {
+											location.href = 'role_add.html';
+										}
+									},
+									{
+										id : 'edit',
+										text : '修改角色',
+										iconCls : 'icon-edit',
+										handler : function() {
+											var result = $("#grid").datagrid(
+													"getSelections");
+											if (result.length == 1) {
+
+												var ppid;
+												var res;
+												$("#editWindow").window("open")
+												$("#roleForm").form("load",
+														result[0])
+												//当前角色的id
+												var id = result[0].id;
+												//alert(result[0])
+												//$("#permissionId").append('<input id="" type="checkbox" name="permissionIds" value="" /><label for=""></label>')
+												$("#permissionId").html("");
+
+												//获取该角色已经关联的权限
+												$
+														.post(
+																"../../roleAction_findById.action",
+																{
+																	"id" : id
+																},
+																function(result) {
+																	res = result;
+
+																}, "json")
+
+												//获取所有权限
+												$
+														.post(
+																"../../permissionAction_findAll.action",
+																function(data) {
+																	var pid;
+																	for (var i = 0; i < data.length; i++) {
+																		pid = data[i].id;
+																		var name = data[i].name;
+																		$(
+																				"#permissionId")
+																				.append(
+																						'<input id="'+pid+'" type="checkbox" name="permissionIds" value="'+pid+'" /><label for="'+pid+'">'
+																								+ name
+																								+ ' </label>')
+
+																		//回显选中的权限
+																		if (res != undefined) {
+																			for (var j = 0; j < res.length; j++) {
+																				if (res[j].id == pid) {
+																					$(
+																							"#"
+																									+ pid
+																									+ "")
+																							.attr(
+																									"checked",
+																									"checked")
+																				}
+																			}
+																		}
+																	}
+																}, "json")
+
+												//发送请求根据当前角色的id动态查询角色对应的权限
+												/* $.post(
+												"../../permissionAction_findAll.action",
+												function(data) {
+													for (var i = 0; i < data.length; i++) {
+														var id = data[i].id;
+														var name = data[i].name;
+														$("#permissionId")
+																.append(
+																		'<input id="'+id+'" type="checkbox" name="permissionIds" value="'+id+'" /><label for="'+id+'">'
+																				+ name + ' </label>')
+													}
+												}, "json") */
+
+												//已经关联的菜单
+												var datas;
+
+												//获取该角色已经关联的菜单
+												$
+														.post(
+																"../../menuAction_findByRoleId.action",
+																{
+																	"id" : id
+																},
+																function(data) {
+																	datas = data;
+																}, "json")
+
+												//发送请求获取所有的菜单进行展示
+												$
+														.ajax({
+															url : '../../menuAction_findAllOneLevel.action', //发送ajax请求获取所有的菜单
+
+															type : 'POST',
+															dataType : 'json',
+															success : function(
+																	data) {
+																//var zNodes = eval("(" + data + ")");
+																$.fn.zTree
+																		.init(
+																				$("#menuTree"),
+																				setting,
+																				data);
+																//alert(datas[0].id)
+																for (var i = 0; i < datas.length; i++) {
+																	//alert(datas[i].id)
+																	var zTree = $.fn.zTree.getZTreeObj("menuTree");
+																	//treeObj.getNodes()[i].checked;
+																	var node = zTree.getNodeByParam("id",datas[i].id);
+																	
+																	zTree.checkNode(node, true);
+																	
+																}
+
+															},
+															error : function(
+																	msg) {
+																alert('树加载异常!');
+															}
+														});
+
+											} else {
+												$.messager.alert("提示信息",
+														"请选择一条数据进行修改",
+														"warning")
+											}
+
+										}
+									} , {
+										id : 'button-export',
+										text : 'Role-Permission',
+										iconCls : 'icon-undo',
+										handler : doExportCharts1
+									}, {
+										id : 'button-export',
+										text : 'Role-Menu',
+										iconCls : 'icon-undo',
+										handler : doExportCharts2
+									}],
+							url : '../../roleAction_pageQuery.action',
+							pageList : [ 20, 30, 50 ],
+							pagination : true,
+							fit : true,
+							singleSelect : true,
+							rownumbers : true,
+							columns : [ [ {
+								field : 'id',
+								title : '编号',
+								width : 200
+
+							}, {
+								field : 'name',
+								title : '名称',
+								width : 200
+							}, {
+								field : 'keyword',
+								title : '关键字',
+								width : 200
+							}, {
+								field : 'description',
+								title : '描述',
+								width : 200
+							} ] ]
+						});
+	});
+
+	function doExportCharts1(){
+		var id;
+		var result = $("#grid").datagrid("getSelections");
+		if(result.length == 1){
+			$("#chartWindow1").window("open")
+			id=result[0].id;
+			//alert(id)
+			//查询当前角色关联的权限
+			$.post("../../roleAction_getById.action",{"id":id},function(data){
+				$('#container1').highcharts({
+					// 标题
+					title : {
+						text : 'Associated Permission'
+					},
+					plotOptions: {
+			            pie: {
+			                allowPointSelect: true,
+			                cursor: 'pointer',
+			                dataLabels: {
+			                    enabled: true,
+			                    format: '<b>{point.name}</b>',
+			                    style: {
+			                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+			                    }
+			                }
+			            }
+			        },
+					// 数据
+					series : [ {
+						type : 'pie',
+						innerSize: '50%',
+						startAngle: -90,
+			            endAngle: 90,
+						data : data
+					} ]
+				});
+			},"json")
+			
+			//查询没有关联的权限
+			$.post("../../roleAction_getAll.action",{"id":id},function(data){
+				$('#container2').highcharts({
+					 chart: {
+				            type: 'pie',
+				            options3d: {
+				                enabled: true,
+				                alpha: 45
+				            }
+				        },
+					// 标题
+					title : {
+						text : 'Not Associated Permission'
+					},
+					plotOptions: {
+			            pie: {
+			                allowPointSelect: true,
+			                cursor: 'pointer',
+			                dataLabels: {
+			                    enabled: true,
+			                    format: '<b>{point.name}</b>',
+			                    style: {
+			                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+			                    }
+			                }
+			            }
+			        },
+					// 数据
+					series : [ {
+						type : 'pie',
+						 innerSize: '50%',
+						data : data
+					} ]
+				});
+			},"json")
+		}
+	}
+	
+	function doExportCharts2(){
+		var id;
+		var lastId;
+		var nextId;
+		var result = $("#grid").datagrid("getSelections");
+		id=result[0].id;
+		//lastId = id;
+		if(lastId != id){
+			lastId = id;
+			
+		}
+		if(result.length == 1){
+			//$("#container4").a.Element.style
+			$("#chartWindow2").window("open")
+			$('#container4').empty();
+			$('#container3').empty();
+			//alert(id)
+			//根据当前角色的id查询已经关联的一级菜单进行显示
+			$.post("../../roleAction_getAllMenuLevelOne.action",{"id":id},function(data){
+				$('#container3').highcharts({
+					// 标题
+					title : {
+						text : 'All ParentMenu'
+					},
+					
+					plotOptions: {
+			            pie: {
+			                allowPointSelect: true,
+			                cursor: 'pointer',
+			                dataLabels: {
+			                    enabled: true,
+			                    format: '<b>{point.name}</b>',
+			                    style: {
+			                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+			                    }
+			                },
+			                events:{  
+			                	  
+		                        click: function(event) { 
+		                        	document.getElementById('container4').style.display = "block";
+		                        	//获取当前点击的菜单的名字
+		                        	var orderType = event.point.name;
+		                        	//alert(orderType)
+		 							//window.open('123.aspx?type='+e.point.type+'&id='+e.point.tid); //单击每个饼图打开一个页面，同时传递参数，单击了哪个饼图，题                                                                //目id是多少。  
+		  							//发送请求，获取该菜单的子菜单
+		  							$.post("../../menuAction_findSonMenu.action",{"name" :orderType,"id":id},function(data){
+		  								//alert(data)
+		  								$('#container4').highcharts({
+		  									 chart: {
+		  								            type: 'pie',
+		  								            options3d: {
+		  								                enabled: true,
+		  								                alpha: 45
+		  								            }
+		  								        },
+		  									// 标题
+		  									title : {
+		  										text : 'SonMenu'
+		  									},
+		  									 plotOptions: {
+		  							            pie: {
+		  							                allowPointSelect: true,
+		  							                cursor: 'pointer',
+		  							                dataLabels: {
+		  							                    enabled: true,
+		  							                    format: '<b>{point.name}</b>',
+		  							                    style: {
+		  							                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+		  							                    }
+		  							                }
+		  							            }
+		  							        },
+		  									// 数据
+		  									series : [ {
+		  										type : 'pie',
+		  										 innerSize: '50%',
+		  										data : data
+		  									} ]
+		  								});
+		  							},"json")
+		  							
+		                        }  
+		  
+		                    },
+			            }
+			        },
+			        
+			        
+					// 数据
+					series : [ {
+						type : 'pie',
+						innerSize: '50%',
+						startAngle: -90,
+			            endAngle: 90,
+						data : data
+					} ]
+				});
+			},"json")
+			
+			
+			//查询未关联的一级二级菜单进行展示
+			
+			/* $.post("../../roleAction_getMenuById.action",{"id":id},function(data){
+				$('#container3').highcharts({
+					 chart: {
+				            type: 'pie',
+				            options3d: {
+				                enabled: true,
+				                alpha: 45
+				            }
+				        },
+					// 标题
+					title : {
+						text : '已关联菜单'
+					},
+					// 数据
+					series : [ {
+						type : 'pie',
+						data : data
+					} ]
+				});
+			},"json")
+			
+			//查询所有的一级菜单
+			$.post("../../roleAction_getAllMenuLevelOne.action",function(data){
+				$('#container4').highcharts({
+					 chart: {
+				            type: 'pie',
+				            options3d: {
+				                enabled: true,
+				                alpha: 45
+				            }
+				        },
+					// 标题
+					title : {
+						text : '全部菜单'
+					},
+					// 数据
+					series : [ {
+						type : 'pie',
+						data : data
+					} ]
+				});
+			},"json")  */
+		}
+	}
+	
+	function checkForm() {
+		if ($("#roleForm").form("validate")) {
+
+			//获取当前修改的角色id
+			var result = $("#grid").datagrid("getSelections");
+			var id = result[0].id;
+			$("#id").val(id)
+
+			//手动封装用户选中的菜单
+			//获取所有被选中的节点集合
+			var treeObj = $.fn.zTree.getZTreeObj("menuTree");
+			var nodes = treeObj.getCheckedNodes(true);
+
+			//创建集合，用来存储被选中的节点id
+			var arr = new Array();
+			//遍历所有的节点，获取节点的id
+			for (var i = 0; i < nodes.length; i++) {
+				arr.push(nodes[i].id)
+			}
+			//将数组转换为字符串
+			var menuIds = arr.toString();
+			//将menuIds赋值给隐藏域，传值给服务器
+			$("#menuIds").val(menuIds)
+			//提交表单
+			$("#roleForm").submit()
+		}
+	}
+</script>
+</head>
+
+<body class="easyui-layout">
+	<div data-options="region:'center'">
+		<table id="grid"></table>
+	</div>
+	
+	<!-- 角色。权限关系图-->
+	<div class="easyui-window" title="Role-Permission" id="chartWindow1"
+		collapsible="false" minimizable="true" maximizable="true" resizable="true"
+		style="top: 20px; left: 300px">
+		<div id="container1" style="width:100%;height:300px"></div>
+		<div id="container2" style="width:100%;height:300px"  ></div>
+	</div>
+	
+	<!-- 角色菜单关系图 -->
+	<div class="easyui-window" title="Role-Menu" id="chartWindow2"
+		collapsible="false" minimizable="true" maximizable="true" resizable="true"
+		style="top: 20px; left: 300px">
+		<div id="container3" style="width:100%;height:300px"  ></div>
+		<div id="container4" style="width:100%;height:300px"  ></div>
+	</div>
+	
+	<!-- 修改角色窗口 -->
+	<div region="center" style="overflow: auto; padding: 5px;"
+		id="editWindow" border="false">
+		<form id="roleForm" method="post"
+			action="../../roleAction_update.action">
+			<input type="hidden" id="menuIds" name="menuIds"> <input
+				type="hidden" id="id" name="id">
+			<table class="table-edit" width="80%" align="center">
+
+				<div class="datagrid-toolbar">
+					<a id="save" onclick="checkForm()" icon="icon-save" href="#"
+						class="easyui-linkbutton" plain="true">保存</a>
+				</div>
+				<tr class="title">
+					<td colspan="2">角色信息</td>
+				</tr>
+				<tr>
+					<td>名称</td>
+					<td><input type="text" name="name" class="easyui-validatebox"
+						data-options="required:true" /></td>
+				</tr>
+				<tr>
+					<td>关键字</td>
+					<td><input type="text" name="keyword"
+						class="easyui-validatebox" data-options="required:true" /></td>
+				</tr>
+				<tr>
+					<td>描述</td>
+					<td><textarea name="description" rows="4" cols="60"></textarea>
+					</td>
+				</tr>
+				<tr>
+					<td>权限选择</td>
+					<td id="permissionId"></td>
+				</tr>
+				<tr>
+					<td>菜单授权</td>
+					<td>
+						<ul id="menuTree" class="ztree"></ul>
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+
+</body>
+
+</html>

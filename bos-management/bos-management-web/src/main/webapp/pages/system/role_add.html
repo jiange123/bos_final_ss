@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>角色添加</title>
+<!-- 导入jquery核心类库 -->
+<script type="text/javascript" src="../../js/jquery-1.8.3.js"></script>
+<!-- 导入easyui类库 -->
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/themes/default/easyui.css">
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/themes/icon.css">
+<link rel="stylesheet" type="text/css"
+	href="../../js/easyui/ext/portal.css">
+<link rel="stylesheet" type="text/css" href="../../css/default.css">
+<script type="text/javascript"
+	src="../../js/easyui/jquery.easyui.min.js"></script>
+<script type="text/javascript"
+	src="../../js/easyui/ext/jquery.portal.js"></script>
+<script type="text/javascript"
+	src="../../js/easyui/ext/jquery.cookie.js"></script>
+<script src="../../js/easyui/locale/easyui-lang-zh_CN.js"
+	type="text/javascript"></script>
+<!-- 导入ztree类库 -->
+<link rel="stylesheet" href="../../js/ztree/zTreeStyle.css"
+	type="text/css" />
+<script src="../../js/ztree/jquery.ztree.all-3.5.js"
+	type="text/javascript"></script>
+<script type="text/javascript">
+	$(function() {
+		// 授权树初始化
+		var setting = {
+			data : {
+				key : {
+					title : "t"
+				},
+				simpleData : {
+					enable : true
+				}
+			},
+			check : {
+				enable : true,
+			}
+		};
+
+		$.ajax({
+			url : '../../menuAction_findAllOneLevel.action', //发送ajax请求获取所有的菜单
+			type : 'POST',
+			dataType : 'text',
+			success : function(data) {
+				var zNodes = eval("(" + data + ")");
+				$.fn.zTree.init($("#menuTree"), setting, zNodes);
+			},
+			error : function(msg) {
+				alert('树加载异常!');
+			}
+		});
+
+		// 点击保存
+		$('#save').click(function() {
+			if ($("#roleForm").form("validate")) {
+				//手动封装菜单列表
+				//获取所有被选中的节点集合
+				var treeObj = $.fn.zTree.getZTreeObj("menuTree");
+				var nodes = treeObj.getCheckedNodes(true);
+				//创建集合，用来存储被选中的节点id
+				var arr = new Array();
+				//遍历所有的节点，获取节点的id
+				for (var i = 0; i < nodes.length; i++) {
+					arr.push(nodes[i].id)
+				}
+				//将数组转换为字符串
+				var menuIds = arr.toString();
+				//将menuIds赋值给隐藏域，传值给服务器
+				$("#menuIds").val(menuIds)
+				//提交表单
+				$("#roleForm").submit()
+			}
+		});
+
+		//发送ajax请求，动态获取权限进行显示
+		$
+				.post(
+						"../../permissionAction_findAll.action",
+						function(data) {
+							for (var i = 0; i < data.length; i++) {
+								var id = data[i].id;
+								var name = data[i].name;
+								$("#permissionId")
+										.append(
+												'<input id="'+id+'" type="checkbox" name="permissionIds" value="'+id+'" /><label for="'+id+'">'
+														+ name + ' </label>')
+							}
+						}, "json")
+
+	});
+</script>
+</head>
+
+<body class="easyui-layout">
+	<div region="north" style="height: 31px; overflow: hidden;"
+		split="false" border="false">
+		<div class="datagrid-toolbar">
+			<a id="save" icon="icon-save" href="#" class="easyui-linkbutton"
+				plain="true">保存</a>
+		</div>
+	</div>
+	<div region="center" style="overflow: auto; padding: 5px;"
+		border="false">
+		<form id="roleForm" method="post" action="../../roleAction_save.action">
+		<input type="hidden" id="menuIds" name="menuIds" >
+			<table class="table-edit" width="80%" align="center">
+			
+				<tr class="title">
+					<td colspan="2">角色信息</td>
+				</tr>
+				<tr>
+					<td>名称</td>
+					<td><input type="text" name="name" class="easyui-validatebox"
+						data-options="required:true" /></td>
+				</tr>
+				<tr>
+					<td>关键字</td>
+					<td><input type="text" name="keyword"
+						class="easyui-validatebox" data-options="required:true" /></td>
+				</tr>
+				<tr>
+					<td>描述</td>
+					<td><textarea name="description" rows="4" cols="60"></textarea>
+					</td>
+				</tr>
+				<tr>
+					<td>权限选择</td>
+					<td id="permissionId"></td>
+				</tr>
+				<tr>
+					<td>菜单授权</td>
+					<td>
+						<ul id="menuTree" class="ztree"></ul>
+					</td>
+				</tr>
+			</table>
+		</form>
+	</div>
+</body>
+
+</html>
