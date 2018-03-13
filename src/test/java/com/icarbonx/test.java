@@ -32,4 +32,12 @@ public class test {
         int i = DateUtil.getDaysBetween(dateByStr1, dateByStr2);
         System.out.println(i);
     }
+
+    @Test
+    public void test3(){
+        Date dateByStr1 = DateUtil.getDateByStr("2018-01-01", "yyyy-MM-dd");
+        Date dateByStr2 = DateUtil.getDateByStr("2018-03-01", "yyyy-MM-dd");
+        int i = DateUtil.getDaysBetween(dateByStr1, dateByStr2);
+        System.out.println(i);
+    }
 }
